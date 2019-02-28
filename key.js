@@ -1,5 +1,5 @@
 module.exports={
-  host     : '121.169.212.220',
+  host     : 'localhost',
   user     : 'itk',
   password : 'q34tq34t'
 }
