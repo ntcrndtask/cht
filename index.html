@@ -1,0 +1,191 @@
+<!DOCTYPE HTML>
+<HTML>
+	<HEAD>
+		<style type="text/css">
+			#chart svg {
+			  height: 400px;
+			}
+		</style>
+	</HEAD>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+	<BODY onload="init()">
+		<div class="background">
+		</div>
+		<script src="/jquery.js"></script>
+		<script src="/socket.io.js"></script>
+		<link href="/nv.d3.css" rel="stylesheet" type="text/css"/>
+		<script src="/d3.min.js"></script>
+		<script src="/nv.d3.min.js"></script>
+		<link href="/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+		<script src="/popper.min.js"></script>
+		<script src="/bootstrap.min.js"></script>
+		<script>
+			var socket = io()
+			var TempJson = null
+ 			function init(){ socket.emit('data','') }
+			function fetchNewData(){ socket.emit('data') }
+			data = null
+			Data = {}
+			Data.AirQualityStatic=[]
+			Data.Ambient_light=[]
+			Data.BatteryLevel=[]
+			Data.GatewayId=[]
+			Data.Humidity=[]
+			Data.IAQaccuracyStatic=[]
+			Data.Movement=[]
+			Data.Pressure=[]
+			Data.SensorNodeId=[]
+			Data.SourceAddress=[]
+			Data.Temperature=[]
+			function viewTemperature(){
+				tempKey = data[i].SensorNodeId
+				tempVal = data[i].Temperature
+				tempData = Data.Temperature
+				for ( j = 0 ; j < tempData.length ; j++ ){
+					if (tempKey == tempData[j].key){
+						count++
+						//tempData[j].values.push({x:tempData[j].values.length,y:tempVal})
+						//tempData[j].values.push({x:data[i].Timestamp,y:tempVal})
+						tempData[j].values.push({x:data[i].Time,y:tempVal})
+						break;
+					}
+				}
+				if(count==0){
+					//Data.Temperature.push({key:tempKey,values:[{x:0,y:tempVal}]})
+					//Data.Temperature.push({key:tempKey,values:[{x:data[i].Timestamp,y:tempVal}]})
+					Data.Temperature.push({key:tempKey,values:[{x:data[i].Time,y:tempVal}]})
+				}
+			}
+			socket.on('data', function(data){
+				// to do when data received
+				for (i = 0 ; i < data.length ; i++){
+					data[i]=JSON.parse(data[i].JSON.replace("}",", \"Time\":\""+data[i].Time+"\", \"Times\":\""+data[i].Timestamp+"\"}"))
+					data[i].Time = new Date(data[i].Time)
+					data[i].Times = new Date(data[i].Times)
+					data[i].SensorNodeId = data[i].SensorNodeId.toUpperCase()
+					count=0
+
+					tempKey = data[i].SensorNodeId
+					tempVal = data[i].Temperature
+					tempData = Data.Temperature
+					for ( j = 0 ; j < tempData.length ; j++ ){
+						if (tempKey == tempData[j].key){
+							count++
+							//tempData[j].values.push({x:tempData[j].values.length,y:tempVal})
+							//tempData[j].values.push({x:data[i].Timestamp,y:tempVal})
+							tempData[j].values.push({x:data[i].Time,y:tempVal})
+							break;
+						}
+					}
+					if(count==0){
+						//Data.Temperature.push({key:tempKey,values:[{x:0,y:tempVal}]})
+						//Data.Temperature.push({key:tempKey,values:[{x:data[i].Timestamp,y:tempVal}]})
+						Data.Temperature.push({key:tempKey,values:[{x:data[i].Time,y:tempVal}]})
+					}
+				}
+				self.data=data
+				nv.addGraph(function() {
+				  var chart = nv.models.lineWithFocusChart();
+				
+				  chart.xAxis
+				    .tickFormat(d3.format(',f'));
+				
+				  chart.yAxis
+				    .tickFormat(d3.format(',.2f'));
+				
+				  chart.y2Axis
+				    .tickFormat(d3.format(',.2f'));
+				
+				  d3.select('#chart svg')
+				    .datum(Data.Temperature)
+				    .transition().duration(500)
+				    .call(chart)
+				    ;
+				
+				  nv.utils.windowResize(chart.update);
+				
+				  return chart;
+				});
+			});
+			
+			function testData() {
+			  return stream_layers(3,128,.1).map(function(data, i) {
+			    return { 
+			      key: 'Stream' + i,
+			      values: data
+			    };
+			  });
+			}
+			function drawchart(){
+				nv.addGraph(function() {
+				  var chart = nv.models.lineWithFocusChart();
+				
+				  chart.xAxis
+				      .tickFormat(d3.format(',f'));
+				
+				  chart.yAxis
+				      .tickFormat(d3.format(',.2f'));
+				
+				  chart.y2Axis
+				      .tickFormat(d3.format(',.2f'));
+				
+				  d3.select('#chart svg')
+				      .datum(dc())
+				      //.datum(testData())
+				      .transition().duration(500)
+				      .call(chart);
+				
+				  nv.utils.windowResize(chart.update);
+				
+				  return chart;
+				});
+			}
+			dc()
+			function dc() {
+			  return stream_layers(3,10+Math.random()*200,.1).map(function(data, i) {
+			    return {
+			      key: 'Stream' + i,
+			      values: data
+			    };
+			  });
+			}
+			
+			/* Inspired by Lee Byron's test data generator. */
+			function stream_layers(n, m, o) {
+			  if (arguments.length < 3) o = 0;
+			  function bump(a) {
+			    var x = 1 / (.1 + Math.random()),
+			        y = 2 * Math.random() - .5,
+			        z = 10 / (.1 + Math.random());
+			    for (var i = 0; i < m; i++) {
+			      var w = (i / m - y) * z;
+			      a[i] += x * Math.exp(-w * w);
+			    }
+			  }
+			  return d3.range(n).map(function() {
+			      var a = [], i;
+			      for (i = 0; i < m; i++) a[i] = o + o * Math.random();
+			      for (i = 0; i < 5; i++) bump(a);
+			      return a.map(stream_index);
+			    });
+			}
+			
+			/* Another layer generator using gamma distributions. */
+			function stream_waves(n, m) {
+			  return d3.range(n).map(function(i) {
+			    return d3.range(m).map(function(j) {
+			        var x = 20 * j / m - i / 3;
+			        return 2 * x * Math.exp(-.5 * x);
+			      }).map(stream_index);
+			    });
+			}
+			
+			function stream_index(d, i) {
+			  return {x: i, y: Math.max(0, d)};
+			}
+			
+
+		</script>
+		<div id="chart"><svg></svg></div>
+	</BODY>
+</HTML>
